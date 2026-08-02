@@ -123,12 +123,52 @@ const getMessages = async (id, token) => {
 }
 
 const channels = await getChannels(process.env.ARENA_GROUP, process.env.ARENA_TOKEN);
-const members = await getMembers(process.env.CSV_URL)
+const members = await getMembers(process.env.CSV_URL);
 const messages = await getMessages(process.env.DISCORD_CHANNEL_ID, process.env.DISCORD_TOKEN);
 
 console.log(channels);
 console.log(members);
 console.log(messages);
 
+const tasks = [];
 
+for (const user of messages) {
+  const slug = members.get(user.id);
+
+  if (!slug) continue;
+
+  // birdcall-drawing-club/birdcalldrawingclub-kristen
+  // -> birdcalldrawingclub-kristen
+  const channelSlug = slug.split("/")[1];
+
+  // 정확히 일치하거나 뒤에 suffix가 있는 채널 찾기
+  const channel = [...channels.entries()].find(([arenaSlug]) =>
+  arenaSlug === channelSlug ||
+  arenaSlug.startsWith(`${channelSlug}-`)
+  );
+
+  const channelId = channel?.[1];
+
+  if (!channelId) continue;
+
+  for (const image of user.images) {
+    tasks.push(
+      createBlock({
+        url: image.url,
+        id: channelId,
+        token: process.env.ARENA_TOKEN,
+      })
+    );
+  }
+}
+
+const results = await Promise.allSettled(tasks);
+
+for (const result of results) {
+  if (result.status === "fulfilled") {
+    console.log("업로드 성공");
+  } else {
+    console.error("업로드 실패:", result.reason);
+  }
+}
 
