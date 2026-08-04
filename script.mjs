@@ -247,7 +247,7 @@ let hasFailure = false;
 for (const task of tasks) {
   try {
     await task.run();
-    console.log("✅", task.userId, task.imageUrl);
+    console.log("✅", task.userId, task.imageUrl, `-> ${task.channelSlug}`);
   } catch (err) {
     hasFailure = true;
     console.error("❌", task.userId, task.imageUrl, err);
