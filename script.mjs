@@ -204,12 +204,6 @@ for (const message of messages) {
   }
 
   for (const image of message.images) {
-    const promise = createBlock({
-      url: image.url,
-      id: channelId,
-      token: process.env.ARENA_TOKEN,
-    });
-
     tasks.push({
       run: () =>
       createBlock({
