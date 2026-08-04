@@ -12,9 +12,7 @@ const loadState = async () => {
 };
 
 const saveState = async (state) => {
-  await fs.writeFile("./state.json", JSON.stringify(state, null, 2),
-    "utf8",
-  );
+  await fs.writeFile("./state.json", JSON.stringify(state, null, 2));
 };
 
 const getMembers = async (url) => {
@@ -213,7 +211,12 @@ for (const message of messages) {
     });
 
     tasks.push({
-      promise,
+      run: () =>
+      createBlock({
+        url: image.url,
+        id: channelId,
+        token: process.env.ARENA_TOKEN,
+      }),
       userId: message.userId,
       messageId: message.messageId,
       imageUrl: image.url,
@@ -235,23 +238,22 @@ if (missingChannels.length > 0) {
   process.exit(1);
 }
 
-// 업로드 성공 유무
+const sleep = (ms) =>
+new Promise((resolve) => setTimeout(resolve, ms));
+const DELAY = 500;
+
 let hasFailure = false;
 
-const results = await Promise.allSettled(
-  tasks.map((task) => task.promise),
-);
-
-for (let i = 0; i < results.length; i++) {
-  const result = results[i];
-  const task = tasks[i];
-
-  if (result.status === "fulfilled") {
+for (const task of tasks) {
+  try {
+    await task.run();
     console.log("✅", task.userId, task.imageUrl);
-  } else {
+  } catch (err) {
     hasFailure = true;
-    console.error("❌", task.userId, task.imageUrl, result.reason);
+    console.error("❌", task.userId, task.imageUrl, err);
   }
+
+  await sleep(DELAY);
 }
 
 if (!hasFailure && messages.length > 0) {
