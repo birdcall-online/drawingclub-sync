@@ -16,9 +16,9 @@ const saveState = async (state) => {
 };
 
 const getMembers = async (url) => {
-  const csv = await fetch(url).then((r) => r.text());
+  const csv = await fetch(url).then((response) => response.text());
   const lines = csv.trim().split("\n");
-  lines.shift(); // 표 맨 위 discord_user_id,arena_slug 제거
+  lines.shift();
 
   const members = new Map();
 
@@ -30,7 +30,7 @@ const getMembers = async (url) => {
     if (
       id &&
       slug &&
-      slug.includes("birdcall-drawing-club/birdcalldrawingclub-")
+      slug.startsWith("birdcall-drawing-club/birdcalldrawingclub-")
     ) {
       members.set(id, slug);
     }
@@ -40,26 +40,35 @@ const getMembers = async (url) => {
 };
 
 const getChannels = async (group, token) => {
-  const res = await fetch(
-    `https://api.are.na/v3/groups/${group}/contents`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
-
-  if (!res.ok) {
-    throw new Error(await res.text());
-  }
-
-  const data = await res.json();
   const channels = new Map();
+  const per = 100;
+  let page = 1;
 
-  for (const block of data.data) {
-    if (block.type !== "Channel") continue;
+  while (true) {
+    const res = await fetch(`https://api.are.na/v3/groups/${group}/contents?type=Channel&per=${per}&page=${page}&sort=created_at_asc`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-    channels.set(block.slug, block.id);
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+
+    const { data } = await res.json();
+
+    if (data.length === 0) {
+      break;
+    }
+
+    for (const channel of data) {
+      if (channel.slug.startsWith("birdcalldrawingclub-")) {
+        channels.set(channel.slug, channel.id);
+      }
+    }
+
+    page++;
   }
 
   return channels;
@@ -68,17 +77,18 @@ const getChannels = async (group, token) => {
 const createBlock = async ({ url, id, token }) => {
   const body = {
     value: url,
-    channels: [{ id: id }],
+    channels: [{ id }],
   };
 
   const res = await fetch("https://api.are.na/v3/blocks", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
 
   if (!res.ok) {
     throw new Error(await res.text());
@@ -88,10 +98,7 @@ const createBlock = async ({ url, id, token }) => {
 };
 
 const getMessages = async (id, token, after) => {
-  const url = new URL(
-    `https://discord.com/api/v10/channels/${id}/messages`,
-  );
-
+  const url = new URL(`https://discord.com/api/v10/channels/${id}/messages`);
   url.searchParams.set("limit", "100");
 
   if (after) {
@@ -109,16 +116,21 @@ const getMessages = async (id, token, after) => {
   }
 
   const messages = await response.json();
+
   const result = [];
 
   for (const message of messages) {
     const images = (message.attachments ?? [])
-    .filter((file) => file.content_type?.startsWith("image/"))
-    .map((file) => ({
-      url: file.url,
-    }));
+      .filter((file) =>
+        file.content_type?.startsWith("image/")
+      )
+      .map((file) => ({
+        url: file.url,
+      }));
 
-    if (!images.length) continue;
+    if (!images.length) {
+      continue;
+    }
 
     result.push({
       messageId: message.id,
@@ -129,35 +141,43 @@ const getMessages = async (id, token, after) => {
   }
 
   return result;
-}
+};
 
 const findChannelId = (channels, channelSlug) => {
-  for (const [arenaSlug, id] of channels) {
-    if (
-      arenaSlug === channelSlug ||
-      arenaSlug.startsWith(`${channelSlug}-`)
-    ) {
-      return id;
+  if (channels.has(channelSlug)) {
+    return channels.get(channelSlug);
+  }
+
+  for (const [arenaSlug, channelId] of channels) {
+    if (arenaSlug.startsWith(`${channelSlug}-`)) {
+      return channelId;
     }
   }
 
   return null;
-}
+};
 
 const state = await loadState();
-const channels = await getChannels(process.env.ARENA_GROUP, process.env.ARENA_TOKEN);
-const members = await getMembers(process.env.CSV_URL);
+
+const channels = await getChannels(
+  process.env.ARENA_GROUP,
+  process.env.ARENA_TOKEN
+);
+
+const members = await getMembers(
+  process.env.CSV_URL
+);
+
 const messages = await getMessages(
   process.env.DISCORD_CHANNEL_ID,
   process.env.DISCORD_TOKEN,
-  state.lastMessageId,
+  state.lastMessageId
 );
 
-console.log(channels);
-console.log(members);
-console.log(messages);
+console.log("are.na channels:", channels.size);
+console.log("google sheet members:", members.size);
+console.log("discord messages:", messages.length);
 
-// 디스코드 이미지의 유저가 CSV에 있는지 체크 없으면 작업 전체 취소
 const unknownUsers = [];
 
 for (const message of messages) {
@@ -170,12 +190,11 @@ for (const message of messages) {
 }
 
 if (unknownUsers.length > 0) {
-  console.error("Unknown Discord users found:");
+  console.error("\n❌ Unknown Discord users found:\n");
 
   for (const user of unknownUsers) {
-    console.error(
-      `- ${user.userId} (message: ${user.messageId})`
-    );
+    console.error(`- Discord user: ${user.userId}`);
+    console.error(`  Message: ${user.messageId}`);
   }
 
   process.exit(1);
@@ -185,13 +204,22 @@ const tasks = [];
 const missingChannels = [];
 
 for (const message of messages) {
-  const slug = members.get(message.userId);
+  const arenaSlug = members.get(message.userId);
 
-  // birdcall-drawing-club/birdcalldrawingclub-kristen
-  const channelSlug = slug.split("/")[1]; // birdcalldrawingclub-kristen
+  if (!arenaSlug) {
+    console.error(
+      `❌ Member not found: ${message.userId}`
+    );
 
-  // 정확히 일치하거나 뒤에 suffix가 있는 채널 찾기
-  const channelId = findChannelId(channels, channelSlug);
+    continue;
+  }
+
+  const channelSlug = arenaSlug.split("/")[1];
+
+  const channelId = findChannelId(
+    channels,
+    channelSlug
+  );
 
   if (!channelId) {
     missingChannels.push({
@@ -205,46 +233,51 @@ for (const message of messages) {
 
   for (const image of message.images) {
     tasks.push({
-      run: () =>
-      createBlock({
-        url: image.url,
-        id: channelId,
-        token: process.env.ARENA_TOKEN,
-      }),
       userId: message.userId,
       messageId: message.messageId,
       imageUrl: image.url,
       channelSlug,
+      channelId,
     });
   }
 }
 
-// CSV에 작성한 채널 이름이 are.na에 없을 경우
 if (missingChannels.length > 0) {
-  console.error("Arena channels not found:");
+  console.error("\n❌ Arena channels not found:\n");
 
   for (const channel of missingChannels) {
-    console.error(
-      `- ${channel.channelSlug} (Discord user: ${channel.userId}, message: ${channel.messageId})`,
-    );
+    console.error(`- ${channel.channelSlug}`);
+    console.error(`  Discord user: ${channel.userId}`);
+    console.error(`  Message: ${channel.messageId}`);
   }
 
   process.exit(1);
 }
 
-const sleep = (ms) =>
-new Promise((resolve) => setTimeout(resolve, ms));
+console.log(`\n✅ All ${messages.length} messages matched successfully.`);
+console.log(`📦 ${tasks.length} image(s) ready to upload.`);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const DELAY = 500;
 
 let hasFailure = false;
 
 for (const task of tasks) {
   try {
-    await task.run();
-    console.log("✅", task.userId, task.imageUrl, `-> ${task.channelSlug}`);
+    await createBlock({
+      url: task.imageUrl,
+      id: task.channelId,
+      token: process.env.ARENA_TOKEN,
+    });
+
+    console.log(`✅ ${task.userId} ${task.imageUrl} -> ${task.channelSlug}`);
+
   } catch (err) {
     hasFailure = true;
-    console.error("❌", task.userId, task.imageUrl, err);
+
+    console.error(`❌ ${task.userId} ${task.imageUrl} -> ${task.channelSlug}`);
+    console.error(err);
   }
 
   await sleep(DELAY);
@@ -255,5 +288,12 @@ if (!hasFailure && messages.length > 0) {
     lastMessageId: messages[0].messageId,
   });
 
-  console.log(`State updated: ${messages[0].messageId}`);
+  console.log(`\nState updated: ${messages[0].messageId}`);
 }
+
+if (hasFailure) {
+  console.error("\n❌ Some blocks failed. State was NOT updated.");
+  process.exit(1);
+}
+
+console.log(`\n🎉 Done! ${tasks.length} image(s) uploaded.`);
