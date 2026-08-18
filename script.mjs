@@ -1,9 +1,38 @@
 import fs from "node:fs/promises";
 import "dotenv/config";
 
+const checkApiHealth = async () => {
+  console.log("🔍 Checking API status...");
+
+  try {
+    const res = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+  } catch (err) {
+    console.error(
+      `❌ [Error] Discord API is unreachable or token is invalid: ${err.message}`,
+    );
+    process.exit(1);
+  }
+
+  try {
+    const res = await fetch("https://api.are.na/v3/me", {
+      headers: { Authorization: `Bearer ${process.env.ARENA_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+  } catch (err) {
+    console.error(
+      `❌ [Error] Are.na API is unreachable or token is invalid: ${err.message}`,
+    );
+    process.exit(1);
+  }
+
+  console.log("✅ Both Discord and Are.na APIs are active.\n");
+};
+
 const snowflakeToKST = (snowflake) => {
   const DISCORD_EPOCH = 1420070400000n;
-
   const timestamp = (BigInt(snowflake) >> 22n) + DISCORD_EPOCH;
 
   return new Date(Number(timestamp)).toLocaleString("ko-KR", {
@@ -13,14 +42,29 @@ const snowflakeToKST = (snowflake) => {
 
 const loadState = async () => {
   try {
-    return JSON.parse(await fs.readFile("./state.json", "utf8"));
+    await fs.access("./state.json");
   } catch {
-    return {
-      messageId: null,
-      imageIndex: null,
-      userId: null,
-      channelSlug: null,
-    };
+    console.error("❌ [Error] state.json file not found. Process terminated.");
+    process.exit(1);
+  }
+
+  try {
+    const rawData = await fs.readFile("./state.json", "utf8");
+    const state = JSON.parse(rawData);
+    const isValidSnowflake = (id) =>
+      typeof id === "string" && /^\d{17,20}$/.test(id);
+
+    if (state.messageId !== null && !isValidSnowflake(state.messageId)) {
+      console.error(
+        `❌ [Error] Invalid Discord messageId format in state.json: "${state.messageId}"`,
+      );
+      process.exit(1);
+    }
+
+    return state;
+  } catch (err) {
+    console.error(`❌ [Error] Failed to parse state.json: ${err.message}`);
+    process.exit(1);
   }
 };
 
@@ -29,27 +73,49 @@ const saveState = async (state) => {
 };
 
 const getMembers = async (url) => {
-  const csv = await fetch(url).then((response) => response.text());
-  const lines = csv.trim().split("\n");
-  lines.shift();
+  console.log("🔍 Checking CSV status...");
 
-  const members = new Map();
+  try {
+    const res = await fetch(url);
 
-  for (const line of lines) {
-    const [discordUserId, arenaSlug] = line.split(",");
-    const id = discordUserId?.trim();
-    const slug = arenaSlug?.trim();
-
-    if (
-      id &&
-      slug &&
-      slug.startsWith("birdcall-drawing-club/birdcalldrawingclub-")
-    ) {
-      members.set(id, slug);
+    if (!res.ok) {
+      throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
     }
-  }
 
-  return members;
+    const csv = await res.text();
+
+    if (!csv.trim()) {
+      throw new Error("CSV content is empty.");
+    }
+
+    const lines = csv.trim().split("\n");
+    lines.shift();
+
+    const members = new Map();
+
+    for (const line of lines) {
+      const [discordUserId, arenaSlug] = line.split(",");
+      const id = discordUserId?.trim();
+      const slug = arenaSlug?.trim();
+
+      if (
+        id &&
+        slug &&
+        slug.startsWith("birdcall-drawing-club/birdcalldrawingclub-")
+      ) {
+        members.set(id, slug);
+      }
+    }
+
+    console.log(`✅ Successfully fetched CSV (${members.size} members).`);
+
+    return members;
+  } catch (err) {
+    console.error(
+      `❌ [Error] Failed to fetch or parse members CSV: ${err.message}`,
+    );
+    process.exit(1);
+  }
 };
 
 const getChannels = async (group, token) => {
@@ -93,10 +159,50 @@ const getChannels = async (group, token) => {
   );
 };
 
-const createBlock = async ({ url, id, token }) => {
+const getRecentBlockKeys = async (channelId, token) => {
+  const recentKeys = new Set();
+
+  const res = await fetch(
+    // get 24 blocks per channel
+    `https://api.are.na/v3/channels/${channelId}/contents?per=24&page=1`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    console.error(
+      `⚠️ [Are.na API Error] Failed to fetch channel (${channelId}): ${res.status}`,
+    );
+    return recentKeys;
+  }
+
+  const { data } = await res.json();
+
+  for (const block of data || []) {
+    const meta = block.metadata;
+    if (
+      meta?.discord_message_id !== undefined &&
+      meta?.discord_image_index !== undefined
+    ) {
+      recentKeys.add(`${meta.discord_message_id}_${meta.discord_image_index}`);
+    }
+  }
+
+  console.log(
+    `🔎 [Are.na Loaded] Channel ID ${channelId}: Found ${recentKeys.size} valid metadata key(s) out of ${data?.length || 0} block(s).`,
+  );
+
+  return recentKeys;
+};
+
+const createBlock = async ({ url, id, token, metadata }) => {
   const body = {
     value: url,
     channels: [{ id }],
+    metadata,
   };
 
   const res = await fetch("https://api.are.na/v3/blocks", {
@@ -174,6 +280,7 @@ const getMessages = async (id, token, state) => {
       }
     }
   }
+
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   let cursor = state.messageId;
@@ -190,8 +297,6 @@ const getMessages = async (id, token, state) => {
       break;
     }
 
-    // Discord는 최신 → 과거 순서로 주므로
-    // 과거 → 최신 순서로 뒤집는다.
     page.reverse();
 
     for (const message of page) {
@@ -264,6 +369,8 @@ const findChannelId = (channels, channelSlug) => {
 };
 
 const state = await loadState();
+
+await checkApiHealth();
 
 const channels = await getChannels(
   process.env.ARENA_GROUP,
@@ -365,6 +472,11 @@ if (missingChannels.length > 0) {
   process.exit(1);
 }
 
+if (tasks.length === 0) {
+  console.log("✨ Everything is up to date.");
+  process.exit(0);
+}
+
 console.log(`\nAll ${messages.length} messages matched`);
 console.log(`${tasks.length} image(s)`);
 
@@ -373,6 +485,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const DELAY = 600;
 
 let lastSuccessfulTask = null;
+
+const channelKeysCache = new Map();
 
 if (tasks.length > 0) {
   const first = tasks[0];
@@ -394,11 +508,37 @@ ${last.channelSlug}`);
 }
 
 for (const [index, task] of tasks.entries()) {
+  if (!channelKeysCache.has(task.channelId)) {
+    const recentKeys = await getRecentBlockKeys(
+      task.channelId,
+      process.env.ARENA_TOKEN,
+    );
+    channelKeysCache.set(task.channelId, recentKeys);
+  }
+
+  const recentKeys = channelKeysCache.get(task.channelId);
+
+  if (recentKeys.has(`${task.messageId}_${task.imageIndex}`)) {
+    console.log(
+      `⏭️ [${index + 1}/${tasks.length}] Duplicate skipped: ${task.channelSlug} image #${task.imageIndex + 1} (Msg: ${task.messageId})`,
+    );
+    continue;
+  }
+
+  console.log(
+    `🆕 [${index + 1}/${tasks.length}] Starting upload: ${task.channelSlug} image #${task.imageIndex + 1} (${snowflakeToKST(task.messageId)})`,
+  );
+
   try {
     await createBlock({
       url: task.imageUrl,
       id: task.channelId,
       token: process.env.ARENA_TOKEN,
+      metadata: {
+        discord_user_id: task.userId,
+        discord_message_id: task.messageId,
+        discord_image_index: task.imageIndex,
+      },
     });
 
     console.log(
