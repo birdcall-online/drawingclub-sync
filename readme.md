@@ -1,8 +1,6 @@
 ### 새로운 Drawing Club을 진행하는 경우
 
-새로운 Discord 채널이나 Google Sheets를 사용하는 경우, 다음 Secret을 새로운 값으로 변경합니다.
-
-GitHub Repository의 **Settings → Secrets and variables → Actions → Secrets**에서 다음 값을 추가합니다.
+GitHub Repository의 **Settings → Secrets and variables → Actions → Secrets**에서 다음 값을 변경합니다.
 
 | Name                 | Value                         |
 | -------------------- | ----------------------------- |
