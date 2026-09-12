@@ -14,6 +14,9 @@ GitHub Repository의 **Settings → Secrets and variables → Actions → Secret
 * `DISCORD_CHANNEL_ID` — 새로운 Discord 채널의 ID
 * `ARENA_GROUP` — 다른 Are.na 그룹을 사용하는 경우 해당 그룹의 ID `birdcall-drawing-club`
 
+**`DISCORD_TOKEN`과 `ARENA_TOKEN`은 별도로 변경할 필요가 없습니다.**
+
+
 #### CSV_URL 변경 방법
 
 Google Sheets에서 사용할 시트를 선택한 후, 해당 시트의 `gid`를 확인하여 다음 형식으로 CSV export URL을 만듭니다.
