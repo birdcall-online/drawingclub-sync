@@ -1,5 +1,8 @@
 ### 새로운 Drawing Club을 진행하는 경우
 
+Discord 버드콜 서버에서 mole#6282 봇의 Roles에 동기화할 채널의 역할을 추가해주세요.
+새로운 Drawing Club 채널에서도 봇이 해당 채널의 메시지를 읽을 수 있도록, 해당 채널에 필요한 역할을 봇에 부여해야 합니다.
+
 GitHub Repository의 **Settings → Secrets and variables → Actions → Secrets**에서 다음 값을 변경합니다.
 
 | Name                 | Value                         |
@@ -11,7 +14,7 @@ GitHub Repository의 **Settings → Secrets and variables → Actions → Secret
 | `ARENA_GROUP`        | Are.na Group ID       |
 
 * `CSV_URL` — 새로운 Google Sheets의 CSV export URL
-* `DISCORD_CHANNEL_ID` — 새로운 Discord 채널의 ID
+* `DISCORD_CHANNEL_ID` — 새로운 Discord 채널의 ID. Discord에서 해당 채널을 우클릭 → Copy Channel ID를 선택하여 확인합니다.
 * `ARENA_GROUP` — 다른 Are.na 그룹을 사용하는 경우 해당 그룹의 ID `birdcall-drawing-club`
 
 **`DISCORD_TOKEN`과 `ARENA_TOKEN`은 별도로 변경할 필요가 없습니다.**
