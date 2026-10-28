@@ -482,7 +482,7 @@ console.log(`${tasks.length} image(s)`);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const DELAY = 600;
+const DELAY = 1500;
 
 let lastSuccessfulTask = null;
 
