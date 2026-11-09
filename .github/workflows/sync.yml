@@ -47,9 +47,6 @@ jobs:
           ARENA_GROUP: ${{ secrets.ARENA_GROUP }}
           CSV_URL: ${{ secrets.CSV_URL }}
         run: node script.mjs
-        
-      - name: Ensure data directory exists
-        run: mkdir -p data
 
       - name: Commit state.json
         if: github.event_name != 'workflow_dispatch' || inputs.task != 'data'
@@ -59,6 +56,9 @@ jobs:
           file_pattern: "state.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Ensure data directory exists
+        run: mkdir -p data
           
       - name: Run Data Script
         if: github.event_name != 'workflow_dispatch' || inputs.task != 'sync'
