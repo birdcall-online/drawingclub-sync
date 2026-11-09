@@ -4,9 +4,17 @@ on:
   schedule:
     # 11:17, 17:17, 23:17, 05:17 KST
     - cron: "17 */6 * * *"
-  workflow_dispatch: # 필요 시 GitHub 웹 화면에서 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "실행할 작업"
+        type: choice
+        default: all
+        options:
+          - all
+          - sync 
+          - data 
 
-# 동시 실행 방지: 이전 작업이 실행 중이면 대기 후 순차 진행
 concurrency:
   group: arena-discord-sync
   cancel-in-progress: false
@@ -14,9 +22,8 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     permissions:
-      contents: write # state.json 커밋 및 푸시를 위한 저장소 쓰기 권한
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -26,12 +33,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm" # package-lock.json이 있을 경우 의존성 캐싱
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run Sync Script
+        if: github.event_name != 'workflow_dispatch' || inputs.task != 'data'
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
@@ -39,11 +47,31 @@ jobs:
           ARENA_GROUP: ${{ secrets.ARENA_GROUP }}
           CSV_URL: ${{ secrets.CSV_URL }}
         run: node script.mjs
+        
+      - name: Ensure data directory exists
+        run: mkdir -p data
 
-      - name: Auto commit state.json
+      - name: Commit state.json
+        if: github.event_name != 'workflow_dispatch' || inputs.task != 'data'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "update state.json [skip ci]"
           file_pattern: "state.json"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Run Data Script
+        if: github.event_name != 'workflow_dispatch' || inputs.task != 'sync'
+        env:
+          ARENA_TOKEN: ${{ secrets.ARENA_TOKEN }}
+          ARENA_CHANNEL: ${{ secrets.ARENA_CHANNEL }}
+        run: node data.mjs
+
+      - name: Commit data
+        if: github.event_name != 'workflow_dispatch' || inputs.task != 'sync'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "update data [skip ci]"
+          file_pattern: "data/*.json list.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
