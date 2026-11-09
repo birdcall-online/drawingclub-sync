@@ -1,0 +1,44 @@
+{
+  "files": [
+    {
+      "slug": "drawing-club-with-oriane-brunat",
+      "title": "Drawing Club with Oriane Brunat",
+      "date": "2025.09.14 - 12.22",
+      "thumbnailUrl": "https://d2w9rnfcy7mm78.cloudfront.net/38783292/original\\_9aabf99ed5fe73598f7397cf0419b0f8.png?1755163227?bc=0",
+      "name": "Oriane Brunat",
+      "file": "drawing-club-with-oriane-brunat.json",
+      "url": "https://raw.githubusercontent.com/birdcall-online/drawingclub-sync/main/data/drawing-club-with-oriane-brunat.json",
+      "created_at": "2025-08-14T10:09:38Z"
+    },
+    {
+      "slug": "drawing-club-with-soi-hong",
+      "title": "Drawing Club with Soi Hong",
+      "date": "2025.04.23 - 07.31",
+      "thumbnailUrl": "https://d2w9rnfcy7mm78.cloudfront.net/38783293/original\\_375568fbe3652105ac55d416f145bcf0.png?1755163227?bc=0",
+      "name": "Soi Hong",
+      "file": "drawing-club-with-soi-hong.json",
+      "url": "https://raw.githubusercontent.com/birdcall-online/drawingclub-sync/main/data/drawing-club-with-soi-hong.json",
+      "created_at": "2025-04-23T14:12:33Z"
+    },
+    {
+      "slug": "with-johanna-tagada-hoffbeck-ii",
+      "title": "with Johanna Tagada Hoffbeck II",
+      "date": "2026.10.16 - 2027.01.23",
+      "thumbnailUrl": "https://d2w9rnfcy7mm78.cloudfront.net/51303770/original\\_e53887227cf9043381a8c1dbad389b77.jpg?1791812128?bc=0",
+      "name": "Johanna Tagada Hoffbeck II",
+      "file": "with-johanna-tagada-hoffbeck-ii.json",
+      "url": "https://raw.githubusercontent.com/birdcall-online/drawingclub-sync/main/data/with-johanna-tagada-hoffbeck-ii.json",
+      "created_at": "2026-10-28T02:17:02Z"
+    },
+    {
+      "slug": "with-johanna-tagada-hoffbeck",
+      "title": "with Johanna Tagada Hoffbeck",
+      "date": "2026.06.06 - 09.13",
+      "thumbnailUrl": "https://d2w9rnfcy7mm78.cloudfront.net/45730685/original\\_c27441764cc76560a681aedd5fa537e0.png?1777555973?bc=0",
+      "name": "Johanna Tagada Hoffbeck",
+      "file": "with-johanna-tagada-hoffbeck.json",
+      "url": "https://raw.githubusercontent.com/birdcall-online/drawingclub-sync/main/data/with-johanna-tagada-hoffbeck.json",
+      "created_at": "2026-06-02T01:51:51Z"
+    }
+  ]
+}
