@@ -368,6 +368,19 @@ const findChannelId = (channels, channelSlug) => {
   return null;
 };
 
+const getCSV = (url) => {
+  const id = url.match(/\/d\/([\w-]+)/)?.[1];
+
+  if (!id) {
+    console.error("Invalid Google Sheets URL:", url);
+    process.exit(1);
+  }
+
+  const gid = url.match(/[?#&]gid=(\d+)/)?.[1] ?? "0";
+
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+};}
+
 const state = await loadState();
 
 await checkApiHealth();
@@ -377,7 +390,9 @@ const channels = await getChannels(
   process.env.ARENA_TOKEN,
 );
 
-const members = await getMembers(process.env.CSV_URL);
+const CSV_URL = getCSV(process.env.SHEET_URL);
+
+const members = await getMembers(CSV_URL);
 
 const messages = await getMessages(
   process.env.DISCORD_CHANNEL_ID,
