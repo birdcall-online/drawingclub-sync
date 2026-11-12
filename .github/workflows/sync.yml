@@ -42,10 +42,10 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.task != 'data'
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          DISCORD_CHANNEL_ID: ${{ vars.DISCORD_CHANNEL_ID }}
           ARENA_TOKEN: ${{ secrets.ARENA_TOKEN }}
-          ARENA_GROUP: ${{ secrets.ARENA_GROUP }}
-          SHEET_URL: ${{ secrets.SHEET_URL }}
+          ARENA_GROUP: ${{ vars.ARENA_GROUP }}
+          SHEET_URL: ${{ vars.SHEET_URL }}
         run: node script.mjs
 
       - name: Commit state.json
