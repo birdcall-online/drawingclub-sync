@@ -379,7 +379,7 @@ const getCSV = (url) => {
   const gid = url.match(/[?#&]gid=(\d+)/)?.[1] ?? "0";
 
   return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
-};}
+};
 
 const state = await loadState();
 
