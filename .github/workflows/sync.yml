@@ -45,7 +45,7 @@ jobs:
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
           ARENA_TOKEN: ${{ secrets.ARENA_TOKEN }}
           ARENA_GROUP: ${{ secrets.ARENA_GROUP }}
-          CSV_URL: ${{ secrets.CSV_URL }}
+          SHEET_URL: ${{ secrets.SHEET_URL }}
         run: node script.mjs
 
       - name: Commit state.json
