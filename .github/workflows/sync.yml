@@ -46,6 +46,7 @@ jobs:
           ARENA_TOKEN: ${{ secrets.ARENA_TOKEN }}
           ARENA_GROUP: ${{ vars.ARENA_GROUP }}
           SHEET_URL: ${{ vars.SHEET_URL }}
+          ARENA_CHANNEL: ${{ vars.ARENA_CHANNEL }}
         run: node script.mjs
 
       - name: Commit state.json
