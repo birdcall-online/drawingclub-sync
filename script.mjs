@@ -40,19 +40,84 @@ const snowflakeToKST = (snowflake) => {
   });
 };
 
+const isValidSnowflake = (id) =>
+      typeof id === "string" && /^\d{17,20}$/.test(id);
+
+const createInitialState = async () => {
+  console.log("🆕 state.json not found. Initializing from the first message...");
+
+  const channelId = process.env.DISCORD_CHANNEL_ID;
+
+  if (!channelId) {
+    console.error(
+      "❌ [Error] state.json not found and DISCORD_CHANNEL_ID is not set. Process terminated.",
+    );
+    process.exit(1);
+  }
+
+  let firstMessageId;
+
+  try {
+    const res = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages?limit=1&after=0`,
+      {
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+        },
+      },
+    );
+
+    if (!res.ok) {
+      throw new Error(`HTTP status ${res.status} ${await res.text()}`);
+    }
+
+    const messages = await res.json();
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw new Error("Channel has no messages.");
+    }
+
+    firstMessageId = messages[0].id;
+
+    if (!isValidSnowflake(firstMessageId)) {
+      throw new Error(`Invalid message id: ${firstMessageId}`);
+    }
+  } catch (err) {
+    console.error(
+      `❌ [Error] Failed to initialize state from DISCORD_CHANNEL_ID (${channelId}): ${err.message}`,
+    );
+    process.exit(1);
+  }
+
+  const state = {
+    time: null,
+    messageId: firstMessageId,
+    imageIndex: -1,
+    userId: null,
+    channelSlug: null,
+    url: null,
+  };
+
+  await saveState(state);
+
+  console.log(
+    `💾 Initial state created: ${firstMessageId} | ${snowflakeToKST(firstMessageId)}\n`,
+  );
+
+  return state;
+};
+
 const loadState = async () => {
   try {
     await fs.access("./state.json");
   } catch {
-    console.error("❌ [Error] state.json file not found. Process terminated.");
-    process.exit(1);
+    // state.json 이 없으면 종료하지 않고 초기화
+    return createInitialState();
   }
 
   try {
     const rawData = await fs.readFile("./state.json", "utf8");
     const state = JSON.parse(rawData);
-    const isValidSnowflake = (id) =>
-      typeof id === "string" && /^\d{17,20}$/.test(id);
 
     if (state.messageId !== null && !isValidSnowflake(state.messageId)) {
       console.error(
@@ -381,9 +446,9 @@ const getCSV = (url) => {
   return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
 };
 
-const state = await loadState();
-
 await checkApiHealth();
+
+const state = await loadState();
 
 const channels = await getChannels(
   process.env.ARENA_GROUP,
