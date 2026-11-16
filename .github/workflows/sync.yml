@@ -65,7 +65,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.task != 'sync'
         env:
           ARENA_TOKEN: ${{ secrets.ARENA_TOKEN }}
-          ARENA_CHANNEL: ${{ secrets.ARENA_CHANNEL }}
+          ARENA_CHANNEL: ${{ vars.ARENA_CHANNEL }}
         run: node data.mjs
 
       - name: Commit data
